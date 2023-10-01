@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdlib.h>         // Required for: malloc() and free()
 #include <time.h>
+#include <pthread.h>
 
 
 typedef uint8_t u8;
@@ -20,13 +21,14 @@ typedef int32_t b32;
 
 #define SCREEN_WIDTH 1000
 #define SCREEN_HEIGHT 1000
-#define MAX_ITER 100
+#define MAX_ITER 1000
 #define MAX_NORM 4
 #define SUPERSAMPLING_FACTOR 16
+#define NUM_THREADS 7
+
 u32 sampling = 1;
-
 Color pixels[SCREEN_WIDTH*SCREEN_HEIGHT*sizeof(Color)] = {0};
-
+pthread_t threads[NUM_THREADS];
 
 inline double getRand() 
 {
@@ -35,10 +37,21 @@ inline double getRand()
     return randomDouble;
 }
 
+typedef struct MandelArgs
+{
+    Color* pixels;
+    Vector2 offSet;
+    double zoom;
+    int begin;
+    int end;
+}MandelArgs;
+
+
 // TODO: Fix smooth color.. add multiple thread.. maybe add more precision
-inline void Mandel(Color *pixels, Vector2 offSet, u64 zoom)
+inline void* Mandel(void* arg)
 {   
-    for (int y = 0; y < SCREEN_HEIGHT; y++)
+    MandelArgs Args = *(MandelArgs*)arg;
+    for (int y = Args.begin; y < Args.end; y++)
     {
         for (int x = 0; x < SCREEN_WIDTH; x++)
         {    
@@ -50,8 +63,8 @@ inline void Mandel(Color *pixels, Vector2 offSet, u64 zoom)
             {
                 double Randx = (sampling > 1)? getRand() : 0;
                 double Randy = (sampling > 1)? getRand() : 0;
-                double real = (x + (Randx) - SCREEN_WIDTH / 2.0) * 4.0 / SCREEN_WIDTH / zoom + offSet.x;
-                double imag = (y + (Randy) - SCREEN_HEIGHT / 2.0) * 4.0 / SCREEN_HEIGHT / zoom + offSet.y;
+                double real = (x + (Randx) - SCREEN_WIDTH / 2.0) * 4.0 / SCREEN_WIDTH / Args.zoom + Args.offSet.x;
+                double imag = (y + (Randy) - SCREEN_HEIGHT / 2.0) * 4.0 / SCREEN_HEIGHT / Args.zoom + Args.offSet.y;
                 double c_real = real;
                 double c_imag = imag;
                 int n = 0;
@@ -98,7 +111,7 @@ inline void Mandel(Color *pixels, Vector2 offSet, u64 zoom)
             color.r = (char)(colorSumR / ( (sampling>1)? SUPERSAMPLING_FACTOR : 1));
             color.g = (char)(colorSumG / ( (sampling>1)? SUPERSAMPLING_FACTOR : 1));
             color.b = (char)(colorSumB / ( (sampling>1)? SUPERSAMPLING_FACTOR : 1));
-            pixels[y * SCREEN_WIDTH + x] = color;
+            Args.pixels[y * SCREEN_WIDTH + x] = color;
         }
     }
 }
@@ -135,7 +148,57 @@ int main(void){
 
         }
         if (IsKeyPressed(KEY_DOWN)) zoom -= 10;
-        Mandel(pixels, offSet,zoom);
+        MandelArgs Args1 = {pixels, offSet, zoom, 0, 128};
+        if (pthread_create(&threads[0], NULL, Mandel, &Args1) != 0)
+        {
+            perror("pthread_create");
+            return 1;
+        }
+        MandelArgs Args2 = {pixels, offSet, zoom, 128, 256};
+        if (pthread_create(&threads[1], NULL, Mandel, &Args2) != 0)
+        {
+            perror("pthread_create");
+            return 1;
+        }
+        MandelArgs Args3 = {pixels, offSet, zoom, 256, 384};
+        if (pthread_create(&threads[2], NULL, Mandel, &Args3) != 0)
+        {
+            perror("pthread_create");
+            return 1;
+        }
+        MandelArgs Args4 = {pixels, offSet, zoom, 384, 512};
+        if (pthread_create(&threads[3], NULL, Mandel, &Args4) != 0)
+        {
+            perror("pthread_create");
+            return 1;
+        }
+        MandelArgs Args5 = {pixels, offSet, zoom, 512, 640};
+        if (pthread_create(&threads[4], NULL, Mandel, &Args5) != 0)
+        {
+            perror("pthread_create");
+            return 1;
+        }
+        MandelArgs Args6 = {pixels, offSet, zoom, 640, 768};
+        if (pthread_create(&threads[5], NULL, Mandel, &Args6) != 0)
+        {
+            perror("pthread_create");
+            return 1;
+        }
+        MandelArgs Args7 = {pixels, offSet, zoom, 768, 896};
+        if (pthread_create(&threads[6], NULL, Mandel, &Args7) != 0)
+        {
+            perror("pthread_create");
+            return 1;
+        }
+        MandelArgs Args8 = {pixels, offSet, zoom, 896, 1000};
+        Mandel(&Args8);
+        pthread_join(threads[0], NULL);
+        pthread_join(threads[1], NULL);
+        pthread_join(threads[2], NULL);
+        pthread_join(threads[3], NULL);
+        pthread_join(threads[4], NULL);
+        pthread_join(threads[5], NULL);
+        pthread_join(threads[6], NULL);
         Texture2D checked = LoadTextureFromImage(checkedIm);
         BeginDrawing();
 
