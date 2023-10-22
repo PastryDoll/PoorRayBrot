@@ -21,7 +21,7 @@ typedef int32_t b32;
 
 #define SCREEN_WIDTH 1000
 #define SCREEN_HEIGHT 1000
-#define MAX_ITER 1000
+#define MAX_ITER 100
 #define MAX_NORM 4
 #define SUPERSAMPLING_FACTOR 16
 #define NUM_THREADS 7
